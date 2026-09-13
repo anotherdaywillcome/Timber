@@ -495,8 +495,30 @@ int main() {
                 if (spriteLog.getPosition().x < -100 || spriteLog.getPosition().x > 2000) {
                     // Set it up ready to be a whole new log next frame
                     logActive = false;
-                    spriteLog.setPosition(Vector2f(810, 720));
+                    spriteLog.setPosition(Vector2f(800, 600));
                 }
+            }
+
+            // Has the player been squished by a branch ?
+            if (branchPositions[5] == playerSide) {
+                // death
+                paused = true;
+                acceptInput = false;
+
+                // Draw the gravestone
+                spriteRIP.setPosition(Vector2f(525, 760));
+
+                // Hide the player
+                spritePlayer.setPosition(Vector2f(2000, 660));
+
+                // Change the text of the message
+                messageText.setString("SQUISHED!");
+
+                // Center it on the screen
+                FloatRect textRect = messageText.getLocalBounds();
+                messageText.setOrigin(textRect.getCenter());
+
+                messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
             }
         }
 
