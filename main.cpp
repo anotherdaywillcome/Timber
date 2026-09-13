@@ -487,6 +487,17 @@ int main() {
             }
 
             // Handle a flying log
+            if (logActive) {
+                spriteLog.setPosition(Vector2f(spriteLog.getPosition().x + (logSpeedX * dt.asSeconds()),
+                                               spriteLog.getPosition().y + (logSpeedY * dt.asSeconds())));
+
+                // Has the log reached the right hand edge ?
+                if (spriteLog.getPosition().x < -100 || spriteLog.getPosition().x > 2000) {
+                    // Set it up ready to be a whole new log next frame
+                    logActive = false;
+                    spriteLog.setPosition(Vector2f(810, 720));
+                }
+            }
         }
 
         /*
