@@ -20,4 +20,5 @@ target_link_libraries(Timber PRIVATE
         SFML::Graphics
         SFML::Window
         SFML::System
+        SFML::Audio
 )

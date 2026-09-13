@@ -1,4 +1,4 @@
-// Include important libraries here
+// Include important C++ libraries here
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/System.hpp>
@@ -35,31 +35,53 @@ int main() {
 
     // Load a graphic into the texture with error checking
     if (!textureBackground.loadFromFile("../graphics/background.png")) {
-        // Handle error - texture failed to load
+        std::cout << "Error loading background texture" << std::endl;
+
         return -1;
     }
-
     // Create a sprite and attach the texture to the sprite
     Sprite spriteBackground(textureBackground);
-
     // Set the spriteBackground to cover the screen
     spriteBackground.setPosition(Vector2f(0.0f, 0.0f));
 
     // Make a tree sprite
     Texture textureTree;
     if (!textureTree.loadFromFile("../graphics/tree.png")) {
+        std::cout << "Error loading tree texture" << std::endl;
+
         return -1;
     }
     Sprite spriteTree(textureTree);
     spriteTree.setPosition(Vector2f(810.0f, 0.0f));
 
+    // More tree sprites
+    Texture textureTree2;
+    if (!textureTree2.loadFromFile("../graphics/tree2.png")) {
+        std::cout << "Error loading tree2 texture" << std::endl;
+
+        return -1;
+    }
+    Sprite spriteTree2(textureTree2);
+    Sprite spriteTree3(textureTree2);
+    Sprite spriteTree4(textureTree2);
+    Sprite spriteTree5(textureTree2);
+    Sprite spriteTree6(textureTree2);
+
+    spriteTree2.setPosition(Vector2f(20, 0));
+    spriteTree3.setPosition(Vector2f(300, -400));
+    spriteTree4.setPosition(Vector2f(1300, -400));
+    spriteTree5.setPosition(Vector2f(1500, -500));
+    spriteTree6.setPosition(Vector2f(1900, 0));
+
     // Prepare the bee
     Texture textureBee;
     if (!textureBee.loadFromFile("../graphics/bee.png")) {
+        std::cout << "Error loading bee texture" << std::endl;
+
         return -1;
     }
     Sprite spriteBee(textureBee);
-    spriteBee.setPosition(Vector2f(0.0f, 800.0f));
+    spriteBee.setPosition(Vector2f(0, 800));
 
     // Is the bee currently moving ?
     bool beeActive = false;
@@ -71,24 +93,42 @@ int main() {
     Texture textureCloud;
     // Load texture
     if (!textureCloud.loadFromFile("../graphics/cloud.png")) {
+        std::cout << "Error loading cloud texture" << std::endl;
+
         return -1;
     }
+
+    const int NUM_CLOUDS = 6;
+    std::vector<Sprite> clouds;
+    int cloudSpeeds[NUM_CLOUDS];
+    bool cloudsActive[NUM_CLOUDS];
+
+    clouds.clear();
+    clouds.resize(NUM_CLOUDS, Sprite(textureCloud));
+    for (int i = 0; i < NUM_CLOUDS; i++) {
+        // Do we need setTexture ?
+        clouds[i].setTexture(textureCloud);
+        clouds[i].setPosition(Vector2f(-300, i * 150));
+        cloudsActive[i] = false;
+        cloudSpeeds[i] = 0;
+    }
+
     // 3 New sprites with the same texture
-    Sprite spriteCloud1(textureCloud);
-    Sprite spriteCloud2(textureCloud);
-    Sprite spriteCloud3(textureCloud);
+    // Sprite spriteCloud1(textureCloud);
+    // Sprite spriteCloud2(textureCloud);
+    // Sprite spriteCloud3(textureCloud);
     // Position the clouds on the left of the screen at different heights
-    spriteCloud1.setPosition(Vector2f(0.0f, 0.0f));
-    spriteCloud2.setPosition(Vector2f(0.0f, 250.0f));
-    spriteCloud3.setPosition(Vector2f(0.0f, 500.0f));
+    // spriteCloud1.setPosition(Vector2f(0.0f, 0.0f));
+    // spriteCloud2.setPosition(Vector2f(0.0f, 250.0f));
+    // spriteCloud3.setPosition(Vector2f(0.0f, 500.0f));
     // Are the clouds currently on screen?
-    bool cloud1Active = false;
-    bool cloud2Active = false;
-    bool cloud3Active = false;
+    // bool cloud1Active = false;
+    // bool cloud2Active = false;
+    // bool cloud3Active = false;
     // How fast is each cloud ?
-    float cloud1Speed = 0.0f;
-    float cloud2Speed = 0.0f;
-    float cloud3Speed = 0.0f;
+    // float cloud1Speed = 0.0f;
+    // float cloud2Speed = 0.0f;
+    // float cloud3Speed = 0.0f;
 
     // Variables to control time itself
     Clock clock;
@@ -107,18 +147,25 @@ int main() {
 
     // Track whether the game is running
     bool paused = true;
-
     // Draw some text
     int score = 0;
 
     // We need to choose a font
     Font font;
     if (!font.openFromFile("../fonts/KOMIKAP_.ttf")) {
+        std::cout << "Error loading font" << std::endl;
+
         return -1;
     }
 
     Text messageText(font);
     Text scoreText(font);
+    Text fpsText(font);
+
+    // Set up the fps text
+    fpsText.setFillColor(Color::White);
+    fpsText.setCharacterSize(100);
+    fpsText.setPosition(Vector2f(1200, 20));
 
     // Assign the actual message
     messageText.setString("Press Enter to start!");
@@ -137,11 +184,24 @@ int main() {
     messageText.setOrigin(textRect.getCenter());
 
     messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
-    scoreText.setPosition(Vector2f(20.0f, 20.0f));
+    scoreText.setPosition(Vector2f(20, 20));
+
+    // Backgrounds for the text
+    RectangleShape rect1;
+    rect1.setFillColor(sf::Color(0, 0, 0, 150));
+    rect1.setSize(Vector2f(600, 105));
+    rect1.setPosition(Vector2f(0, 30));
+
+    RectangleShape rect2;
+    rect2.setFillColor(sf::Color(0, 0, 0, 150));
+    rect2.setSize(Vector2f(1000, 105));
+    rect2.setPosition(Vector2f(1150, 30));
 
     // Prepare 5 branches
     Texture textureBranch;
     if (!textureBranch.loadFromFile("../graphics/branch.png")) {
+        std::cout << "Error loading branch texture" << std::endl;
+
         return -1;
     }
 
@@ -159,8 +219,11 @@ int main() {
         branches[i].setOrigin(Vector2f(220, 20));
     }
 
+    // Prepare the player
     Texture texturePlayer;
     if (!texturePlayer.loadFromFile("../graphics/player.png")) {
+        std::cout << "Error loading player texture" << std::endl;
+
         return -1;
     }
     Sprite spritePlayer(texturePlayer);
@@ -172,6 +235,8 @@ int main() {
     // Prepare the gravestone
     Texture textureRIP;
     if (!textureRIP.loadFromFile("../graphics/rip.png")) {
+        std::cout << "Error loading gravestone texture" << std::endl;
+
         return -1;
     }
     Sprite spriteRIP(textureRIP);
@@ -180,6 +245,8 @@ int main() {
     // Prepare the axe
     Texture textureAxe;
     if (!textureAxe.loadFromFile("../graphics/axe.png")) {
+        std::cout << "Error loading axe texture" << std::endl;
+
         return -1;
     }
     Sprite spriteAxe(textureAxe);
@@ -192,6 +259,8 @@ int main() {
     // Prepare the flying Log
     Texture textureLog;
     if (!textureLog.loadFromFile("../graphics/log.png")) {
+        std::cout << "Error loading log texture" << std::endl;
+
         return -1;
     }
     Sprite spriteLog(textureLog);
@@ -208,7 +277,7 @@ int main() {
     // Prepare the sound
     SoundBuffer chopBuffer;
     if (!chopBuffer.loadFromFile("../sound/chop.wav")) {
-        std::cout << "didn't load chop.wav";
+        std::cout << "Error loading chop sound" << std::endl;
 
         return -1;
     }
@@ -216,6 +285,8 @@ int main() {
 
     SoundBuffer deathBuffer;
     if (!deathBuffer.loadFromFile("../sound/death.wav")) {
+        std::cout << "Error loading death sound" << std::endl;
+
         return -1;
     }
     Sound death(deathBuffer);
@@ -223,6 +294,8 @@ int main() {
     // Out of time
     SoundBuffer ootBuffer;
     if (!ootBuffer.loadFromFile("../sound/out_of_time.wav")) {
+        std::cout << "Error loading out of time sound" << std::endl;
+
         return -1;
     }
     Sound outOfTime(ootBuffer);
@@ -235,6 +308,9 @@ int main() {
     updateBranches(4);
     updateBranches(5);
     */
+
+    // control the drawing of the score
+    int lastDrawn = 0;
 
     while (window.isOpen()) {
         /*
@@ -285,7 +361,12 @@ int main() {
         //     }
         // }
 
-        // Handle keyboard input
+        /*
+        ****************************************
+        Handle the players input
+        ****************************************
+        */
+
         if (Keyboard::isKeyPressed(Keyboard::Key::Escape)) {
             window.close();
         }
@@ -362,7 +443,6 @@ int main() {
 
                 // set the log flying
                 spriteLog.setPosition(Vector2f(810, 720));
-
                 logSpeedX = 5000;
                 logActive = true;
 
@@ -394,7 +474,7 @@ int main() {
                 // Change the message shown to the player
                 messageText.setString("Out of time!");
 
-                //Reposition the text based on its new size
+                // Reposition the text based on its new size
                 FloatRect textRect = messageText.getLocalBounds();
                 messageText.setOrigin(textRect.getCenter());
 
@@ -412,8 +492,8 @@ int main() {
 
                 // How high is the bee
                 srand((int) time(0) * 10);
-                float height = (rand() % 1350) + 500;
-                spriteBee.setPosition(Vector2f(2000.0f, height));
+                float height = (rand() % 500) + 500;
+                spriteBee.setPosition(Vector2f(2000, height));
                 beeActive = true;
             } else {
                 // Move the bee
@@ -426,76 +506,110 @@ int main() {
                 }
             }
 
+            // Manage the clouds with arrays
+            for (int i = 0; i < NUM_CLOUDS; i++) {
+                if (!cloudsActive[i]) {
+                    // How fast is the cloud
+                    srand((int) time(0) * i);
+                    cloudSpeeds[i] = (rand() % 200);
+
+                    // How high is the cloud
+                    srand((int) time(0) * i);
+                    float height = (rand() % 150);
+                    clouds[i].setPosition(Vector2f(-200, height));
+                    cloudsActive[i] = true;
+                } else {
+                    clouds[i].setPosition(Vector2f(clouds[i].getPosition().x + (cloudSpeeds[i] * dt.asSeconds()),
+                                                   clouds[i].getPosition().y));
+
+                    // Has the cloud reached right hand edge of the screen ?
+                    if (clouds[i].getPosition().x > 1920) {
+                        // Set the cloud to be a whole new cloud next frame
+                        cloudsActive[i] = false;
+                    }
+                }
+            }
+
             // Manage the clouds
             // Cloud 1
-            if (!cloud1Active) {
-                // How fast is the cloud
-                srand((int) time(0) * 10);
-                cloud1Speed = (rand() % 200);
-
-                // How high is the cloud
-                srand((int) time(0) * 10);
-                float height = (rand() % 150);
-                spriteCloud1.setPosition(Vector2f(-200.0f, height));
-                cloud1Active = true;
-            } else {
-                spriteCloud1.setPosition(Vector2f(spriteCloud1.getPosition().x + (cloud1Speed * dt.asSeconds()),
-                                                  spriteCloud1.getPosition().y));
-
-                // Has the cloud reached the right hand edge of the screen ?
-                if (spriteCloud1.getPosition().x > 1920) {
-                    // Set it up ready to be a whole new cloud next frame
-                    cloud1Active = false;
-                }
-            }
+            // if (!cloud1Active) {
+            //     // How fast is the cloud
+            //     srand((int) time(0) * 10);
+            //     cloud1Speed = (rand() % 200);
+            //
+            //     // How high is the cloud
+            //     srand((int) time(0) * 10);
+            //     float height = (rand() % 150);
+            //     spriteCloud1.setPosition(Vector2f(-200.0f, height));
+            //     cloud1Active = true;
+            // } else {
+            //     spriteCloud1.setPosition(Vector2f(spriteCloud1.getPosition().x + (cloud1Speed * dt.asSeconds()),
+            //                                       spriteCloud1.getPosition().y));
+            //
+            //     // Has the cloud reached the right hand edge of the screen ?
+            //     if (spriteCloud1.getPosition().x > 1920) {
+            //         // Set it up ready to be a whole new cloud next frame
+            //         cloud1Active = false;
+            //     }
+            // }
 
             // Cloud2
-            if (!cloud2Active) {
-                // How fast is the cloud
-                srand((int) time(0) * 20);
-                cloud2Speed = (rand() % 200);
+            // if (!cloud2Active) {
+            //     // How fast is the cloud
+            //     srand((int) time(0) * 20);
+            //     cloud2Speed = (rand() % 200);
+            //
+            //     // How hight is the cloud
+            //     srand((int) time(0) * 20);
+            //     float height = (rand() % 300) - 150;
+            //     spriteCloud2.setPosition(Vector2f(-200.0f, height));
+            //     cloud2Active = true;
+            // } else {
+            //     spriteCloud2.setPosition(Vector2f(spriteCloud2.getPosition().x + (cloud2Speed * dt.asSeconds()),
+            //                                       spriteCloud2.getPosition().y));
+            //
+            //     // Has the cloud reached the right hand of the screen ?
+            //     if (spriteCloud2.getPosition().x > 1920) {
+            //         // Set it up ready to be a whole new cloud next frame
+            //         cloud2Active = false;
+            //     }
+            // }
 
-                // How hight is the cloud
-                srand((int) time(0) * 20);
-                float height = (rand() % 300) - 150;
-                spriteCloud2.setPosition(Vector2f(-200.0f, height));
-                cloud2Active = true;
-            } else {
-                spriteCloud2.setPosition(Vector2f(spriteCloud2.getPosition().x + (cloud2Speed * dt.asSeconds()),
-                                                  spriteCloud2.getPosition().y));
+            // if (!cloud3Active) {
+            //     // How fast is the cloud
+            //     srand((int) time(0) * 30);
+            //     cloud3Speed = (rand() % 200);
+            //
+            //     // How high is the cloud
+            //     srand((int) time(0) * 30);
+            //     float height = (rand() % 450) - 150;
+            //     spriteCloud3.setPosition(Vector2f(-200.0f, height));
+            //     cloud3Active = true;
+            // } else {
+            //     spriteCloud3.setPosition(Vector2f(spriteCloud3.getPosition().x + (cloud3Speed * dt.asSeconds()),
+            //                                       spriteCloud3.getPosition().y));
+            //
+            //     // Has the cloud reached the right hand edge of the screen?
+            //     if (spriteCloud3.getPosition().x > 1920) {
+            //         // Set it up ready to be a whole new cloud next frame
+            //         cloud3Active = false;
+            //     }
+            // }
 
-                // Has the cloud reached the right hand of the screen ?
-                if (spriteCloud2.getPosition().x > 1920) {
-                    // Set it up ready to be a whole new cloud next frame
-                    cloud2Active = false;
-                }
+            // Draw the score and the frame rate once every 100 frames
+            lastDrawn++;
+            if (lastDrawn == 100) {
+                // Update the score text
+                std::stringstream ss;
+                ss << "Score = " << score;
+                scoreText.setString(ss.str());
+
+                // Draw the fps
+                std::stringstream ss2;
+                ss2 << "FPS = " << 1 / dt.asSeconds();
+                fpsText.setString(ss2.str());
+                lastDrawn = 0;
             }
-
-            if (!cloud3Active) {
-                // How fast is the cloud
-                srand((int) time(0) * 30);
-                cloud3Speed = (rand() % 200);
-
-                // How high is the cloud
-                srand((int) time(0) * 30);
-                float height = (rand() % 450) - 150;
-                spriteCloud3.setPosition(Vector2f(-200.0f, height));
-                cloud3Active = true;
-            } else {
-                spriteCloud3.setPosition(Vector2f(spriteCloud3.getPosition().x + (cloud3Speed * dt.asSeconds()),
-                                                  spriteCloud3.getPosition().y));
-
-                // Has the cloud reached the right hand edge of the screen?
-                if (spriteCloud3.getPosition().x > 1920) {
-                    // Set it up ready to be a whole new cloud next frame
-                    cloud3Active = false;
-                }
-            }
-
-            // Update the score text
-            std::stringstream ss;
-            ss << "Score = " << score;
-            scoreText.setString(ss.str());
 
             // update the branch sprites
             for (int i = 0; i < NUM_BRANCHES; i++) {
@@ -504,13 +618,13 @@ int main() {
                 if (branchPositions[i] == side::LEFT) {
                     // Move the sprite to the Left side
                     branches[i].setPosition(Vector2f(610, height));
-
+                    branches[i].setOrigin(Vector2f(220, 40));
                     // Flip the sprite round the other way
                     branches[i].setRotation(degrees(180));
                 } else if (branchPositions[i] == side::RIGHT) {
                     // Move the sprite to the right side
                     branches[i].setPosition(Vector2f(1330, height));
-
+                    branches[i].setOrigin(Vector2f(220, 40));
                     // Set the sprite rotation to normal
                     branches[i].setRotation(degrees(0));
                 } else {
@@ -528,7 +642,7 @@ int main() {
                 if (spriteLog.getPosition().x < -100 || spriteLog.getPosition().x > 2000) {
                     // Set it up ready to be a whole new log next frame
                     logActive = false;
-                    spriteLog.setPosition(Vector2f(800, 600));
+                    spriteLog.setPosition(Vector2f(810, 720));
                 }
             }
 
@@ -570,9 +684,9 @@ int main() {
         window.draw(spriteBackground);
 
         // Draw the clouds
-        window.draw(spriteCloud1);
-        window.draw(spriteCloud2);
-        window.draw(spriteCloud3);
+        // window.draw(spriteCloud1);
+        // window.draw(spriteCloud2);
+        // window.draw(spriteCloud3);
 
         // Draw the branches
         for (int i = 0; i < NUM_BRANCHES; i++) {
@@ -594,11 +708,18 @@ int main() {
         // Draw the gravestone
         window.draw(spriteRIP);
 
+        // Draw backgrounds for the text
+        window.draw(rect1);
+        window.draw(rect2);
+
         // Now draw the insect
         window.draw(spriteBee);
 
         // Draw the score
         window.draw(scoreText);
+
+        // Draw the FPS
+        window.draw(fpsText);
 
         // Draw the timebar
         window.draw(timeBar);
@@ -631,10 +752,8 @@ void updateBranches(int seed) {
         case 0:
             branchPositions[0] = side::LEFT;
             break;
-
         case 1:
             branchPositions[0] = side::RIGHT;
-
         default:
             branchPositions[0] = side::NONE;
             break;
