@@ -2,7 +2,9 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/System.hpp>
+#include <SFML/Audio.hpp>
 #include <sstream>
+#include<iostream>
 
 // Make code easier to type with "using namespace"
 using namespace sf;
@@ -203,6 +205,28 @@ int main() {
     // Control the player input
     bool acceptInput = false;
 
+    // Prepare the sound
+    SoundBuffer chopBuffer;
+    if (!chopBuffer.loadFromFile("../sound/chop.wav")) {
+        std::cout << "didn't load chop.wav";
+
+        return -1;
+    }
+    Sound chop(chopBuffer);
+
+    SoundBuffer deathBuffer;
+    if (!deathBuffer.loadFromFile("../sound/death.wav")) {
+        return -1;
+    }
+    Sound death(deathBuffer);
+
+    // Out of time
+    SoundBuffer ootBuffer;
+    if (!ootBuffer.loadFromFile("../sound/out_of_time.wav")) {
+        return -1;
+    }
+    Sound outOfTime(ootBuffer);
+
     /*
     *Ts
     updateBranches(1);
@@ -314,6 +338,9 @@ int main() {
                 logActive = true;
 
                 acceptInput = false;
+
+                // Play a chop sound
+                chop.play();
             }
 
             // Handle the left cursor key
@@ -340,6 +367,9 @@ int main() {
                 logActive = true;
 
                 acceptInput = false;
+
+                // Play a chop sound
+                chop.play();
             }
         }
 
@@ -369,6 +399,9 @@ int main() {
                 messageText.setOrigin(textRect.getCenter());
 
                 messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
+
+                // Play the out of time sound
+                outOfTime.play();
             }
 
             // Setup the bee
@@ -519,6 +552,9 @@ int main() {
                 messageText.setOrigin(textRect.getCenter());
 
                 messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
+
+                // Play the death sound
+                death.play();
             }
         }
 
