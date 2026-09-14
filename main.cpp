@@ -3,14 +3,19 @@
 #include <SFML/Window.hpp>
 #include <SFML/System.hpp>
 #include <SFML/Audio.hpp>
-#include <sstream>
-#include<iostream>
 
-// Make code easier to type with "using namespace"
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+
 using namespace sf;
 
 // Function declaration
-void updateBranches(int seed);
+void updateBranches(int seed, float difficulty);
 
 const int NUM_BRANCHES = 6;
 // Sprite branches[NUM_BRANCHES];
@@ -22,17 +27,69 @@ enum class side { LEFT, RIGHT, NONE };
 
 side branchPositions[NUM_BRANCHES];
 
+// Persistent game data
+int highScore = 0;
+const std::string HIGH_SCORE_FILE = "highscore.txt";
+
+// Difficulty starts at 1.0 and rises as the score increases.
+float difficultyMultiplier = 1.0f;
+
+// Screen shake state
+float shakeTime = 0.0f;
+float shakeStrength = 0.0f;
+
+// Read the saved high score when the game starts.
+void loadHighScore() {
+    std::ifstream file(HIGH_SCORE_FILE);
+
+    if (file) {
+        file >> highScore;
+    }
+}
+
+// Save the high score whenever it changes.
+void saveHighScore() {
+    std::ofstream file(HIGH_SCORE_FILE);
+
+    if (file) {
+        file << highScore;
+    }
+}
+
+// Start a screen-shake effect.
+void triggerShake(float strength, float duration) {
+    shakeStrength = std::max(shakeStrength, strength);
+    shakeTime = std::max(shakeTime, duration);
+}
+
+// Difficulty is based on score rather than time played.
+// Every 10 points makes the game noticeably harder, with a sensible cap.
+void updateDifficulty(int score) {
+    difficultyMultiplier = 1.0f + (score / 10) * 0.12f;
+    difficultyMultiplier = std::min(difficultyMultiplier, 2.5f);
+}
+
+// Update the text origin after changing a centered message.
+void centerText(Text &text, Vector2f position) {
+    FloatRect textRect = text.getLocalBounds();
+    text.setOrigin(textRect.getCenter());
+    text.setPosition(position);
+}
+
 // This is where our game starts from
 int main() {
+    loadHighScore();
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
     // Create a video mode object - SFML 3.0 uses Vector2u
     VideoMode vm(Vector2u(1920, 1080));
 
     // Create and open a window for the game
     RenderWindow window(vm, "Timber!!!", State::Windowed);
+    View gameView = window.getDefaultView();
 
     // Create a texture to hold a graphic on the GPU
     Texture textureBackground;
-
     // Load a graphic into the texture with error checking
     if (!textureBackground.loadFromFile("../graphics/background.png")) {
         std::cout << "Error loading background texture" << std::endl;
@@ -61,6 +118,7 @@ int main() {
 
         return -1;
     }
+
     Sprite spriteTree2(textureTree2);
     Sprite spriteTree3(textureTree2);
     Sprite spriteTree4(textureTree2);
@@ -105,12 +163,16 @@ int main() {
 
     clouds.clear();
     clouds.resize(NUM_CLOUDS, Sprite(textureCloud));
+
     for (int i = 0; i < NUM_CLOUDS; i++) {
-        // Do we need setTexture ?
         clouds[i].setTexture(textureCloud);
-        clouds[i].setPosition(Vector2f(-300, i * 150));
-        cloudsActive[i] = false;
-        cloudSpeeds[i] = 0;
+
+        float startX = -300.0f + (i * 380.0f);
+        float startY = 60.0f + ((i % 3) * 130.0f);
+
+        clouds[i].setPosition(Vector2f(startX, startY));
+        cloudsActive[i] = true;
+        cloudSpeeds[i] = 60 + (std::rand() % 100);
     }
 
     // 3 New sprites with the same texture
@@ -132,6 +194,7 @@ int main() {
 
     // Variables to control time itself
     Clock clock;
+    Clock frameClock;
 
     // Time bar
     RectangleShape timeBar;
@@ -150,6 +213,10 @@ int main() {
     // Draw some text
     int score = 0;
 
+    // Combo increases every successful chop and is used as a time bonus.
+    int combo = 0;
+    int comboMultiplier = 1;
+
     // We need to choose a font
     Font font;
     if (!font.openFromFile("../fonts/KOMIKAP_.ttf")) {
@@ -160,16 +227,33 @@ int main() {
 
     Text messageText(font);
     Text scoreText(font);
-    Text fpsText(font);
+    // Text fpsText(font);
+    Text highScoreText(font);
+    Text comboText(font);
 
     // Set up the fps text
-    fpsText.setFillColor(Color::White);
-    fpsText.setCharacterSize(100);
-    fpsText.setPosition(Vector2f(1200, 20));
+    // fpsText.setFillColor(Color::White);
+    // fpsText.setCharacterSize(100);
+    // fpsText.setPosition(Vector2f(1200, 20));
+
+    highScoreText.setFillColor(Color::White);
+    highScoreText.setCharacterSize(55);
+    highScoreText.setPosition(Vector2f(20, 125));
+
+    comboText.setFillColor(Color::White);
+    comboText.setCharacterSize(55);
+    comboText.setPosition(Vector2f(20, 190));
 
     // Assign the actual message
     messageText.setString("Press Enter to start!");
     scoreText.setString("Score = 0");
+
+    {
+        std::stringstream ss;
+        ss << "Best = " << highScore;
+        highScoreText.setString(ss.str());
+    }
+    comboText.setString("");
 
     // Make it really big
     messageText.setCharacterSize(75);
@@ -188,14 +272,14 @@ int main() {
 
     // Backgrounds for the text
     RectangleShape rect1;
-    rect1.setFillColor(sf::Color(0, 0, 0, 150));
+    rect1.setFillColor(Color(0, 0, 0, 150));
     rect1.setSize(Vector2f(600, 105));
     rect1.setPosition(Vector2f(0, 30));
 
     RectangleShape rect2;
-    rect2.setFillColor(sf::Color(0, 0, 0, 150));
-    rect2.setSize(Vector2f(1000, 105));
-    rect2.setPosition(Vector2f(1150, 30));
+    rect2.setFillColor(Color(0, 0, 0, 150));
+    rect2.setSize(Vector2f(650, 105));
+    rect2.setPosition(Vector2f(1250, 30));
 
     // Prepare 5 branches
     Texture textureBranch;
@@ -310,7 +394,7 @@ int main() {
     */
 
     // control the drawing of the score
-    int lastDrawn = 0;
+    // int lastDrawn = 0;
 
     while (window.isOpen()) {
         /*
@@ -375,9 +459,12 @@ int main() {
         if (Keyboard::isKeyPressed(Keyboard::Key::Enter)) {
             paused = false;
 
-            // Reset the time and the score
+            // Reset the game state.
             score = 0;
-            timeRemaining = 6;
+            combo = 0;
+            comboMultiplier = 1;
+            difficultyMultiplier = 1.0f;
+            timeRemaining = 6.0f;
 
             // Make all the branches disappear
             for (int i = 1; i < NUM_BRANCHES; i++) {
@@ -387,10 +474,26 @@ int main() {
             // Make sure the gravestone is hidden
             spriteRIP.setPosition(Vector2f(675, 2000));
 
-            // Move the player into position
+            // Move the player into position.
             spritePlayer.setPosition(Vector2f(580, 720));
+            playerSide = side::LEFT;
+
+            // Reset the axe/log.
+            spriteAxe.setPosition(Vector2f(2000, spriteAxe.getPosition().y));
+            spriteLog.setPosition(Vector2f(810, 720));
+            logActive = false;
+
+            // Reset the timer bar.
+            timeBar.setSize(Vector2f(timeBarStartWidth, timeBarHeight));
+
+            scoreText.setString("Score = 0");
+            comboText.setString("");
+
+            messageText.setString("Press Enter to start!");
+            centerText(messageText, Vector2f(1920 / 2.0f, 1080 / 2.0f));
 
             acceptInput = true;
+            clock.restart();
         }
 
         // Wrap the player controls to
@@ -402,16 +505,26 @@ int main() {
                 playerSide = side::RIGHT;
 
                 score++;
+                combo++;
+                comboMultiplier = 1 + (combo / 5);
+
+                updateDifficulty(score);
 
                 // Add to the amount of time remaining
-                timeRemaining += (2 / score) + .15;
+                // timeRemaining += (2 / score) + .15;
+                // Later chop give slightly less raw time, but a good combo
+                // gives a bonus multiplier. This keep the game fast.
+                float timeBonus = (0.45f / difficultyMultiplier)
+                                  + (0.10f * comboMultiplier);
+                timeRemaining += timeBonus;
+                timeRemaining = std::min(timeRemaining, 6.0f);
 
-                spriteAxe.setPosition(Vector2f(AXE_POSITION_RIGHT, spriteAxe.getPosition().y));;
+                spriteAxe.setPosition(Vector2f(AXE_POSITION_RIGHT, spriteAxe.getPosition().y));
 
                 spritePlayer.setPosition(Vector2f(1200, 720));
 
                 // Update the branches
-                updateBranches(score);
+                updateBranches(score, difficultyMultiplier);
 
                 // Set the log flying to the left
                 spriteLog.setPosition(Vector2f(810, 720));
@@ -419,6 +532,30 @@ int main() {
                 logActive = true;
 
                 acceptInput = false;
+
+                // Update score/combo immediately
+                {
+                    std::stringstream ss;
+                    ss << "Score = " << score;
+                    scoreText.setString(ss.str());
+
+                    std::stringstream cs;
+                    cs << "Combo x" << comboMultiplier;
+                    comboText.setString(cs.str());
+                }
+
+                // Update the high score immediately.
+                if (score > highScore) {
+                    highScore = score;
+                    saveHighScore();
+
+                    std::stringstream hs;
+                    hs << "Best = " << highScore;
+                    highScoreText.setString(hs.str());
+                }
+
+                // A successful chop gives a small satisfying shake.
+                triggerShake(4.0f, 0.08f);
 
                 // Play a chop sound
                 chop.play();
@@ -430,16 +567,24 @@ int main() {
                 playerSide = side::LEFT;
 
                 score++;
+                combo++;
+                comboMultiplier = 1 + (combo / 5);
+
+                updateDifficulty(score);
 
                 // Add to the amount of time remaining
-                timeRemaining += (2 / score) + .15;
+                // timeRemaining += (2 / score) + .15;
+                float timeBonus = (0.45f / difficultyMultiplier)
+                                  + (0.10f * comboMultiplier);
+                timeRemaining += timeBonus;
+                timeRemaining = std::min(timeRemaining, 6.0f);
 
                 spriteAxe.setPosition(Vector2f(AXE_POSITION_LEFT, spriteAxe.getPosition().y));
 
                 spritePlayer.setPosition(Vector2f(580, 720));
 
                 // update the branches
-                updateBranches(score);
+                updateBranches(score, difficultyMultiplier);
 
                 // set the log flying
                 spriteLog.setPosition(Vector2f(810, 720));
@@ -447,6 +592,30 @@ int main() {
                 logActive = true;
 
                 acceptInput = false;
+
+                // Update score/combo immediately
+                {
+                    std::stringstream ss;
+                    ss << "Score = " << score;
+                    scoreText.setString(ss.str());
+
+                    std::stringstream cs;
+                    cs << "Combo x" << comboMultiplier;
+                    comboText.setString(cs.str());
+                }
+
+                // Update the high score immediately.
+                if (score > highScore) {
+                    highScore = score;
+                    saveHighScore();
+
+                    std::stringstream hs;
+                    hs << "Best = " << highScore;
+                    highScoreText.setString(hs.str());
+                }
+
+                // A successful chop gives a small satisfying shake.
+                triggerShake(4.0f, 0.08f);
 
                 // Play a chop sound
                 chop.play();
@@ -465,8 +634,16 @@ int main() {
 
             // Subtract from the amount of time remaining
             timeRemaining -= dt.asSeconds();
-            // size up the time bar
-            timeBar.setSize(Vector2f(timeBarWidthPerSecond * timeRemaining, timeBarHeight));
+            // Keep the timer bar inside its legal range.
+            // timeBar.setSize(Vector2f(timeBarWidthPerSecond * timeRemaining, timeBarHeight));
+            timeRemaining = std::max(0.0f, timeRemaining);
+            timeBar.setSize(Vector2f(
+                timeBarWidthPerSecond * timeRemaining,
+                timeBarHeight
+            ));
+
+            // Difficulty affects the world, not just branch generation.
+            updateDifficulty(score);
 
             if (timeRemaining <= 0.0f) {
                 // Pause the game
@@ -480,6 +657,11 @@ int main() {
 
                 messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
 
+                // Missing the time limit breaks the combo.
+                combo = 0;
+                comboMultiplier = 1;
+                comboText.setString("");
+
                 // Play the out of time sound
                 outOfTime.play();
             }
@@ -488,7 +670,7 @@ int main() {
             if (!beeActive) {
                 // How fast is the bee
                 srand((int) time(0));
-                beeSpeed = (rand() % 200) + 200;
+                beeSpeed = ((std::rand() % 200) + 200) * difficultyMultiplier;
 
                 // How high is the bee
                 srand((int) time(0) * 10);
@@ -506,28 +688,35 @@ int main() {
                 }
             }
 
-            // Manage the clouds with arrays
+            // Manage the clouds.
+            // Clouds are purely visual, but their speed increases slightly with difficulty.
             for (int i = 0; i < NUM_CLOUDS; i++) {
                 if (!cloudsActive[i]) {
-                    // How fast is the cloud
-                    srand((int) time(0) * i);
-                    cloudSpeeds[i] = (rand() % 200);
+                    cloudSpeeds[i] = 60 + (std::rand() % 100);
 
-                    // How high is the cloud
-                    srand((int) time(0) * i);
-                    float height = (rand() % 150);
-                    clouds[i].setPosition(Vector2f(-200, height));
+                    float height = 40.0f + static_cast<float>(std::rand() % 400);
+                    clouds[i].setPosition(Vector2f(-300.0f, height));
                     cloudsActive[i] = true;
                 } else {
-                    clouds[i].setPosition(Vector2f(clouds[i].getPosition().x + (cloudSpeeds[i] * dt.asSeconds()),
-                                                   clouds[i].getPosition().y));
+                    float speed = cloudSpeeds[i] * (0.8f + difficultyMultiplier * 0.2f);
 
-                    // Has the cloud reached right hand edge of the screen ?
-                    if (clouds[i].getPosition().x > 1920) {
-                        // Set the cloud to be a whole new cloud next frame
+                    clouds[i].setPosition(Vector2f(
+                        clouds[i].getPosition().x + speed * dt.asSeconds(),
+                        clouds[i].getPosition().y
+                    ));
+
+                    if (clouds[i].getPosition().x > 2100.0f) {
                         cloudsActive[i] = false;
                     }
                 }
+            }
+
+            // Score/combo are updated when a chop happens, so we do not need
+            // to rebuild their strings every frame.
+            {
+                std::stringstream hs;
+                hs << "Best = " << highScore;
+                highScoreText.setString(hs.str());
             }
 
             // Manage the clouds
@@ -597,19 +786,19 @@ int main() {
             // }
 
             // Draw the score and the frame rate once every 100 frames
-            lastDrawn++;
-            if (lastDrawn == 100) {
-                // Update the score text
-                std::stringstream ss;
-                ss << "Score = " << score;
-                scoreText.setString(ss.str());
-
-                // Draw the fps
-                std::stringstream ss2;
-                ss2 << "FPS = " << 1 / dt.asSeconds();
-                fpsText.setString(ss2.str());
-                lastDrawn = 0;
-            }
+            // lastDrawn++;
+            // if (lastDrawn == 100) {
+            //     // Update the score text
+            //     std::stringstream ss;
+            //     ss << "Score = " << score;
+            //     scoreText.setString(ss.str());
+            //
+            //     // Draw the fps
+            //     std::stringstream ss2;
+            //     ss2 << "FPS = " << 1 / dt.asSeconds();
+            //     fpsText.setString(ss2.str());
+            //     lastDrawn = 0;
+            // }
 
             // update the branch sprites
             for (int i = 0; i < NUM_BRANCHES; i++) {
@@ -667,6 +856,13 @@ int main() {
 
                 messageText.setPosition(Vector2f(1920 / 2.0f, 1080 / 2.0f));
 
+                // Death breaks the combo and gives strong feedback.
+                combo = 0;
+                comboMultiplier = 1;
+                comboText.setString("");
+
+                triggerShake(18.0f, 0.35f);
+
                 // Play the death sound
                 death.play();
             }
@@ -680,6 +876,23 @@ int main() {
         // Clear everything from the last frame
         window.clear();
 
+        // ---------------- WORLD ----------------
+        // Only the world moves during screen shake. UI stays stable.
+        if (shakeTime > 0.0f) {
+            float intensity = shakeStrength * (shakeTime / 0.35f);
+            float offsetX = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * intensity;
+            float offsetY = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * intensity;
+
+            gameView.setCenter(Vector2f(
+                960.0f + offsetX,
+                540.0f + offsetY
+            ));
+        } else {
+            gameView.setCenter(Vector2f(960.0f, 540.0f));
+        }
+
+        window.setView(gameView);
+
         // Draw our game scene here
         window.draw(spriteBackground);
 
@@ -688,39 +901,44 @@ int main() {
         // window.draw(spriteCloud2);
         // window.draw(spriteCloud3);
 
-        // Draw the branches
+        // Draw every cloud.
+        for (int i = 0; i < NUM_CLOUDS; i++) {
+            window.draw(clouds[i]);
+        }
+
         for (int i = 0; i < NUM_BRANCHES; i++) {
             window.draw(branches[i]);
         }
 
         // Draw the tree
         window.draw(spriteTree);
-
         // Draw the player
         window.draw(spritePlayer);
-
         // Draw the axe
         window.draw(spriteAxe);
-
         // Draw the flying logs
         window.draw(spriteLog);
-
         // Draw the gravestone
         window.draw(spriteRIP);
-
         // Draw backgrounds for the text
-        window.draw(rect1);
-        window.draw(rect2);
-
+        // window.draw(rect1);
+        // window.draw(rect2);
         // Now draw the insect
         window.draw(spriteBee);
 
+        // ---------------- UI ----------------
+        // Reset to the normal camera so score/time/text do not shake.
+
+        window.setView(window.getDefaultView());
+
+        window.draw(rect1);
+        window.draw(rect2);
         // Draw the score
         window.draw(scoreText);
-
+        window.draw(highScoreText);
+        window.draw(comboText);
         // Draw the FPS
-        window.draw(fpsText);
-
+        // window.draw(fpsText);
         // Draw the timebar
         window.draw(timeBar);
 
@@ -729,7 +947,18 @@ int main() {
             window.draw(messageText);
         }
 
-        // Show everything we just drew
+        // Reduce shake over real frame time, even while the game is paused.
+        Time frameDt = frameClock.restart();
+        if (shakeTime > 0.0f) {
+            shakeTime -= frameDt.asSeconds();
+
+            if (shakeTime <= 0.0f) {
+                shakeTime = 0.0f;
+                shakeStrength = 0.0f;
+            }
+        }
+
+        // Show everything we just drew.
         window.display();
     }
 
@@ -737,7 +966,7 @@ int main() {
 }
 
 // Function definition
-void updateBranches(int seed) {
+void updateBranches(int seed, float difficulty) {
     // Move all the branches down one place
     for (int j = NUM_BRANCHES - 1; j > 0; j--) {
         branchPositions[j] = branchPositions[j - 1];
@@ -745,17 +974,18 @@ void updateBranches(int seed) {
 
     // Spawn a new branch at position 0
     // LEFT, RIGHT or NONE
-    srand((int) time(0) + seed);
-    int r = (rand() % 5);
+    // At low difficulty, a branch is dangerous 40% of the time.
+    // As difficulty rises, the chance increases toward 70%.
+    int dangerousChance = static_cast<int>(40.0f + (difficulty - 1.0f) * 20.0f);
+    dangerousChance = std::min(dangerousChance, 70);
 
-    switch (r) {
-        case 0:
-            branchPositions[0] = side::LEFT;
-            break;
-        case 1:
-            branchPositions[0] = side::RIGHT;
-        default:
-            branchPositions[0] = side::NONE;
-            break;
+    int roll = std::rand() % 100;
+
+    if (roll < dangerousChance / 2) {
+        branchPositions[0] = side::LEFT;
+    } else if (roll < dangerousChance) {
+        branchPositions[0] = side::RIGHT;
+    } else {
+        branchPositions[0] = side::NONE;
     }
 }
