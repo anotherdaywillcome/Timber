@@ -17,6 +17,22 @@ using namespace sf;
 // Function declaration
 void updateBranches(int seed, float difficulty);
 
+// Read the saved high score when the game starts.
+void loadHighScore();
+
+// Save the high score whenever it changes.
+void saveHighScore();
+
+// Start a screen-shake effect.
+void triggerShake(float strength, float duration);
+
+// Difficulty is based on score rather than time played.
+// Every 10 points makes the game noticeably harder, with a sensible cap.
+void updateDifficulty(int score);
+
+// Update the text origin after changing a centered message.
+void centerText(Text &text, Vector2f position);
+
 const int NUM_BRANCHES = 6;
 // Sprite branches[NUM_BRANCHES];
 std::vector<Sprite> branches;
@@ -37,44 +53,6 @@ float difficultyMultiplier = 1.0f;
 // Screen shake state
 float shakeTime = 0.0f;
 float shakeStrength = 0.0f;
-
-// Read the saved high score when the game starts.
-void loadHighScore() {
-    std::ifstream file(HIGH_SCORE_FILE);
-
-    if (file) {
-        file >> highScore;
-    }
-}
-
-// Save the high score whenever it changes.
-void saveHighScore() {
-    std::ofstream file(HIGH_SCORE_FILE);
-
-    if (file) {
-        file << highScore;
-    }
-}
-
-// Start a screen-shake effect.
-void triggerShake(float strength, float duration) {
-    shakeStrength = std::max(shakeStrength, strength);
-    shakeTime = std::max(shakeTime, duration);
-}
-
-// Difficulty is based on score rather than time played.
-// Every 10 points makes the game noticeably harder, with a sensible cap.
-void updateDifficulty(int score) {
-    difficultyMultiplier = 1.0f + (score / 10) * 0.12f;
-    difficultyMultiplier = std::min(difficultyMultiplier, 2.5f);
-}
-
-// Update the text origin after changing a centered message.
-void centerText(Text &text, Vector2f position) {
-    FloatRect textRect = text.getLocalBounds();
-    text.setOrigin(textRect.getCenter());
-    text.setPosition(position);
-}
 
 // This is where our game starts from
 int main() {
@@ -172,7 +150,7 @@ int main() {
 
         clouds[i].setPosition(Vector2f(startX, startY));
         cloudsActive[i] = true;
-        cloudSpeeds[i] = 60 + (std::rand() % 100);
+        cloudSpeeds[i] = 60 + (rand() % 100);
     }
 
     // 3 New sprites with the same texture
@@ -276,10 +254,10 @@ int main() {
     rect1.setSize(Vector2f(600, 105));
     rect1.setPosition(Vector2f(0, 30));
 
-    RectangleShape rect2;
-    rect2.setFillColor(Color(0, 0, 0, 150));
-    rect2.setSize(Vector2f(650, 105));
-    rect2.setPosition(Vector2f(1250, 30));
+    // RectangleShape rect2;
+    // rect2.setFillColor(Color(0, 0, 0, 150));
+    // rect2.setSize(Vector2f(650, 105));
+    // rect2.setPosition(Vector2f(1250, 30));
 
     // Prepare 5 branches
     Texture textureBranch;
@@ -670,7 +648,7 @@ int main() {
             if (!beeActive) {
                 // How fast is the bee
                 srand((int) time(0));
-                beeSpeed = ((std::rand() % 200) + 200) * difficultyMultiplier;
+                beeSpeed = ((rand() % 200) + 200) * difficultyMultiplier;
 
                 // How high is the bee
                 srand((int) time(0) * 10);
@@ -692,9 +670,9 @@ int main() {
             // Clouds are purely visual, but their speed increases slightly with difficulty.
             for (int i = 0; i < NUM_CLOUDS; i++) {
                 if (!cloudsActive[i]) {
-                    cloudSpeeds[i] = 60 + (std::rand() % 100);
+                    cloudSpeeds[i] = 60 + (rand() % 100);
 
-                    float height = 40.0f + static_cast<float>(std::rand() % 400);
+                    float height = 40.0f + static_cast<float>(rand() % 400);
                     clouds[i].setPosition(Vector2f(-300.0f, height));
                     cloudsActive[i] = true;
                 } else {
@@ -880,8 +858,8 @@ int main() {
         // Only the world moves during screen shake. UI stays stable.
         if (shakeTime > 0.0f) {
             float intensity = shakeStrength * (shakeTime / 0.35f);
-            float offsetX = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * intensity;
-            float offsetY = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * intensity;
+            float offsetX = (static_cast<float>(rand() % 200) / 100.0f - 1.0f) * intensity;
+            float offsetY = (static_cast<float>(rand() % 200) / 100.0f - 1.0f) * intensity;
 
             gameView.setCenter(Vector2f(
                 960.0f + offsetX,
@@ -932,7 +910,7 @@ int main() {
         window.setView(window.getDefaultView());
 
         window.draw(rect1);
-        window.draw(rect2);
+        // window.draw(rect2);
         // Draw the score
         window.draw(scoreText);
         window.draw(highScoreText);
@@ -979,7 +957,7 @@ void updateBranches(int seed, float difficulty) {
     int dangerousChance = static_cast<int>(40.0f + (difficulty - 1.0f) * 20.0f);
     dangerousChance = std::min(dangerousChance, 70);
 
-    int roll = std::rand() % 100;
+    int roll = rand() % 100;
 
     if (roll < dangerousChance / 2) {
         branchPositions[0] = side::LEFT;
@@ -988,4 +966,42 @@ void updateBranches(int seed, float difficulty) {
     } else {
         branchPositions[0] = side::NONE;
     }
+}
+
+// Read the saved high score when the game starts.
+void loadHighScore() {
+    std::ifstream file(HIGH_SCORE_FILE);
+
+    if (file) {
+        file >> highScore;
+    }
+}
+
+// Save the high score whenever it changes.
+void saveHighScore() {
+    std::ofstream file(HIGH_SCORE_FILE);
+
+    if (file) {
+        file << highScore;
+    }
+}
+
+// Start a screen-shake effect.
+void triggerShake(float strength, float duration) {
+    shakeStrength = std::max(shakeStrength, strength);
+    shakeTime = std::max(shakeTime, duration);
+}
+
+// Difficulty is based on score rather than time played.
+// Every 10 points makes the game noticeably harder, with a sensible cap.
+void updateDifficulty(int score) {
+    difficultyMultiplier = 1.0f + (score / 10) * 0.12f;
+    difficultyMultiplier = std::min(difficultyMultiplier, 2.5f);
+}
+
+// Update the text origin after changing a centered message.
+void centerText(Text &text, Vector2f position) {
+    FloatRect textRect = text.getLocalBounds();
+    text.setOrigin(textRect.getCenter());
+    text.setPosition(position);
 }
