@@ -180,7 +180,8 @@ int main() {
     float timeBarHeight = 80;
     timeBar.setSize(Vector2f(timeBarStartWidth, timeBarHeight));
     timeBar.setFillColor(Color::Red);
-    timeBar.setPosition(Vector2f((1920 / 2) - timeBarStartWidth / 2, 980));
+    // timeBar.setPosition(Vector2f((1920 / 2) - timeBarStartWidth / 2, 980));
+    timeBar.setPosition(Vector2f(2000, 980));
 
     Time gameTimeTotal;
     float timeRemaining = 6.0f;
@@ -289,7 +290,10 @@ int main() {
         return -1;
     }
     Sprite spritePlayer(texturePlayer);
-    spritePlayer.setPosition(Vector2f(580, 720));
+    // spritePlayer.setPosition(Vector2f(580, 720));
+
+    // Hide player before game starts
+    spritePlayer.setPosition(Vector2f(2000, 2000));
 
     // The player starts on the left
     side playerSide = side::LEFT;
@@ -302,7 +306,10 @@ int main() {
         return -1;
     }
     Sprite spriteRIP(textureRIP);
-    spriteRIP.setPosition(Vector2f(600, 860));
+    // spriteRIP.setPosition(Vector2f(600, 860));
+
+    // Hide gravestone before game starts
+    spriteRIP.setPosition(Vector2f(2000, 2000));
 
     // Prepare the axe
     Texture textureAxe;
@@ -312,11 +319,17 @@ int main() {
         return -1;
     }
     Sprite spriteAxe(textureAxe);
-    spriteAxe.setPosition(Vector2f(700, 830));
+    // spriteAxe.setPosition(Vector2f(700, 830));
 
     // Line the axe up with the tree
+    const float AXE_POSITION_Y = 830;
     const float AXE_POSITION_LEFT = 700;
     const float AXE_POSITION_RIGHT = 1075;
+
+    // Normal axe position
+    spriteAxe.setPosition(Vector2f(700, AXE_POSITION_Y));
+    // Hide axe before game starts
+    spriteAxe.setPosition(Vector2f(2000, AXE_POSITION_Y));
 
     // Prepare the flying Log
     Texture textureLog;
@@ -436,6 +449,11 @@ int main() {
         // Start the game
         if (Keyboard::isKeyPressed(Keyboard::Key::Enter)) {
             paused = false;
+
+            // Show the time bar
+            timeBar.setPosition(
+                Vector2f((1920 / 2) - timeBarStartWidth / 2, 980)
+            );
 
             // Reset the game state.
             score = 0;
@@ -819,11 +837,20 @@ int main() {
                 paused = true;
                 acceptInput = false;
 
+                // Hide time bar
+                timeBar.setPosition(Vector2f(2000, 980));
+
                 // Draw the gravestone
-                spriteRIP.setPosition(Vector2f(525, 760));
+                if (playerSide == side::LEFT) {
+                    spriteRIP.setPosition(Vector2f(580, 760));
+                } else {
+                    spriteRIP.setPosition(Vector2f(1200, 760));
+                }
 
                 // Hide the player
                 spritePlayer.setPosition(Vector2f(2000, 660));
+                // Hide the axe
+                spriteAxe.setPosition(Vector2f(2000, spriteAxe.getPosition().y));
 
                 // Change the text of the message
                 messageText.setString("SQUISHED!");
